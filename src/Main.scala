@@ -14,7 +14,7 @@ case class Leaf(value: Int) extends Node
 
 case class Range(val value: Int, val mask: Long) {
     override def toString = value + "/" +
-                            (mask & ((1 << Tree.maxDepth) - 1)).toHexString
+                            (mask & ((1L << Tree.maxDepth) - 1L)).toHexString
 }
 
 object Tree {
