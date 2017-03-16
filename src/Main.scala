@@ -20,14 +20,14 @@ case class Range(val value: Int, val mask: Long) {
 object Tree {
     val maxDepth = 4
 
-    def AddValue(value: Int, root: Node): Node = {
+    def AddValue(value: Int, trie: Node): Node = {
 
-        def AddValueImpl(value: Int, root: Node, depth: Int): Node = {
+        def AddValueImpl(value: Int, trie: Node, depth: Int): Node = {
             if (depth > Tree.maxDepth) {
                 new Leaf(value)
             } else {
                 val isOne = GetBit(value, Tree.maxDepth - depth) == 1
-                root match {
+                trie match {
                     case Tree(l, r) if !isOne =>
                         new Tree(AddValueImpl(value, l, depth + 1), r)
                     case Tree(l, r) if isOne =>
@@ -41,7 +41,7 @@ object Tree {
             }
         }
 
-        AddValueImpl(value, root, 1)
+        AddValueImpl(value, trie, 1)
     }
 
     def GetDisallowedRanges(value: Int, trie: Node,
