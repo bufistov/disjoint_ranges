@@ -22,8 +22,10 @@ object Tree {
     def AddValue(value: Int, root: Node): Node = {
 
         def AddValueImpl(value: Int, root: Node, depth: Int): Node = {
-            if (depth <= Tree.maxDepth) {
-                val isOne = getBit(value, Tree.maxDepth - depth) == 1
+            if (depth > Tree.maxDepth) {
+                new Leaf(value)
+            } else {
+                val isOne = GetBit(value, Tree.maxDepth - depth) == 1
                 root match {
                     case Tree(l, r) if !isOne =>
                         new Tree(AddValueImpl(value, l, depth + 1), r)
@@ -35,8 +37,6 @@ object Tree {
                     case Nil if isOne =>
                         new Tree(Nil, AddValueImpl(value, Nil, depth + 1))
                 }
-            } else {
-                new Leaf(value)
             }
         }
 
@@ -53,12 +53,12 @@ object Tree {
                 val bitPos = Tree.maxDepth - depth
                 val lastBit = 1 << bitPos
                 val mask = ~(lastBit - 1)
-                val isOne = getBit(value, bitPos) == 1
+                val isOne = GetBit(value, bitPos) == 1
                 trie match {
-                    case Tree(Nil, r) if min || (!min && !max) =>
+                    case Tree(Nil, r) if min =>
                         Range((value ^ lastBit) & mask, mask) ::
                         GetDisallowedRangesImpl(value, r, min, max, depth + 1)
-                    case Tree(l, Nil) if max || (!max && !min) =>
+                    case Tree(l, Nil) if max =>
                         Range((value ^ lastBit) & mask, mask) ::
                         GetDisallowedRangesImpl(value, l, min, max, depth + 1)
                     case Tree(l, r) if isOne =>
@@ -74,23 +74,23 @@ object Tree {
 
     def GetAllowedRanges(minValue: Int, maxValue: Int, trie: Node): List[Range] = {
 
-        def skipCommonPrefix(minValue: Int, maxValue: Int, trie: Node,
+        def SkipCommonPrefix(minValue: Int, maxValue: Int, trie: Node,
                              depth: Int): (Node, Int) = {
             if (depth > Tree.maxDepth) {
                 (trie, depth)
             } else {
                 val bitPos = Tree.maxDepth - depth
-                val bitMin = getBit(minValue, bitPos)
-                val bitMax = getBit(maxValue, bitPos)
+                val bitMin = GetBit(minValue, bitPos)
+                val bitMax = GetBit(maxValue, bitPos)
                 if (bitMin != bitMax) {
                     (trie, depth)
                 } else {
                     trie match {
                         case Tree(l, r)  =>
                             if (bitMin == 1) {
-                                skipCommonPrefix (minValue, maxValue, r, depth + 1)
+                                SkipCommonPrefix (minValue, maxValue, r, depth + 1)
                             } else {
-                                skipCommonPrefix(minValue, maxValue, l, depth + 1)
+                                SkipCommonPrefix(minValue, maxValue, l, depth + 1)
                             }
                     }
                 }
@@ -103,7 +103,7 @@ object Tree {
                 List(Range(value, -1))
             } else {
                 val bitPos = Tree.maxDepth - depth
-                val isOne = getBit(value, bitPos) == 1
+                val isOne = GetBit(value, bitPos) == 1
                 val lastBit = 1 << (bitPos)
                 val mask = ~(lastBit - 1)
                 trie match {
@@ -121,14 +121,43 @@ object Tree {
             }
         }
 
-        val (root, depth) = skipCommonPrefix(minValue, maxValue, trie, 1)
+        val (root, depth) = SkipCommonPrefix(minValue, maxValue, trie, 1)
         val fromMin = GetAllowedRangesImpl(minValue, root, true, false, depth)
         val fromMax = GetAllowedRangesImpl(maxValue, root, false, true, depth)
         return fromMin ::: fromMax
     }
 
-    private def getBit(value: Int, pos: Int) = {
+    private def GetBit(value: Int, pos: Int) = {
         if ((value & (1 << pos)) != 0) 1 else 0
+    }
+
+    private def GetRangesImpl(value: Int, trie: Node, min: Boolean,
+                              max: Boolean, allowed: Boolean,
+                              depth: Int): List[Range] = {
+        if (depth > Tree.maxDepth) {
+            if (allowed) {
+                List(Range(value, -1))
+            } else {
+                List()
+            }
+        } else {
+            val bitPos = Tree.maxDepth - depth
+            val lastBit = 1 << bitPos
+            val mask = ~(lastBit - 1)
+            val isOne = GetBit(value, bitPos) == 1
+            trie match {
+                case Tree(Nil, r) if (!allowed && min) || (allowed && max) =>
+                    Range((value ^ lastBit) & mask, mask) ::
+                    GetRangesImpl(value, r, min, max, allowed, depth + 1)
+                case Tree(l, Nil) if (!allowed && max) || (allowed && min) =>
+                    Range((value ^ lastBit) & mask, mask) ::
+                    GetRangesImpl(value, l, min, max, allowed, depth + 1)
+                case Tree(l, r) if isOne =>
+                    GetRangesImpl(value, r, min, max, allowed, depth + 1)
+                case Tree(l, r) if !isOne =>
+                    GetRangesImpl(value, l, min, max, allowed, depth + 1)
+            }
+        }
     }
 }
 
@@ -143,8 +172,8 @@ object Main extends App {
     Tree.GetDisallowedRanges(5, t2, false, true) foreach println
 
     println("Disallowed [2],[5] ranges:")
-    Tree.GetDisallowedRanges(2, t2, false, false) foreach println
-    val disallowed2 = Tree.GetDisallowedRanges(5, t2, false, false)
+    Tree.GetDisallowedRanges(2, t2, true, true) foreach println
+    val disallowed2 = Tree.GetDisallowedRanges(5, t2, true, true)
     disallowed2 foreach println
 
     println("Allowed [2,5] ranges:")
