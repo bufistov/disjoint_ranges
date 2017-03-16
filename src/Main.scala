@@ -13,7 +13,8 @@ case class Tree(val left: Node, val right: Node) extends Node
 case class Leaf(value: Int) extends Node
 
 case class Range(val value: Int, val mask: Long) {
-    override def toString = value + "/" + (mask & ((1 << Tree.maxDepth) - 1)).toHexString
+    override def toString = value + "/" +
+                            (mask & ((1 << Tree.maxDepth) - 1)).toHexString
 }
 
 object Tree {
@@ -43,32 +44,9 @@ object Tree {
         AddValueImpl(value, root, 1)
     }
 
-    def GetDisallowedRanges(value: Int, trie: Node, min: Boolean, max: Boolean): List[Range] = {
-
-        def GetDisallowedRangesImpl(value: Int, trie: Node, min: Boolean, max: Boolean,
-                                    depth: Int): List[Range] = {
-            if (depth > Tree.maxDepth) {
-                return List()
-            } else {
-                val bitPos = Tree.maxDepth - depth
-                val lastBit = 1 << bitPos
-                val mask = ~(lastBit - 1)
-                val isOne = GetBit(value, bitPos) == 1
-                trie match {
-                    case Tree(Nil, r) if min =>
-                        Range((value ^ lastBit) & mask, mask) ::
-                        GetDisallowedRangesImpl(value, r, min, max, depth + 1)
-                    case Tree(l, Nil) if max =>
-                        Range((value ^ lastBit) & mask, mask) ::
-                        GetDisallowedRangesImpl(value, l, min, max, depth + 1)
-                    case Tree(l, r) if isOne =>
-                        GetDisallowedRangesImpl(value, r, min, max, depth + 1)
-                    case Tree(l, r) if !isOne =>
-                        GetDisallowedRangesImpl(value, l, min, max, depth + 1)
-                }
-            }
-        }
-        GetDisallowedRangesImpl(value, trie, min, max, 1)
+    def GetDisallowedRanges(value: Int, trie: Node,
+                            min: Boolean, max: Boolean): List[Range] = {
+        GetRangesImpl(value, trie, min, max, allowed = false, 1)
     }
 
 
@@ -97,33 +75,11 @@ object Tree {
             }
         }
 
-        def GetAllowedRangesImpl(value: Int, trie: Node, min: Boolean,
-                                 max: Boolean, depth: Int): List[Range] = {
-            if (depth > Tree.maxDepth) {
-                List(Range(value, -1))
-            } else {
-                val bitPos = Tree.maxDepth - depth
-                val isOne = GetBit(value, bitPos) == 1
-                val lastBit = 1 << (bitPos)
-                val mask = ~(lastBit - 1)
-                trie match {
-                    case Tree(l, Nil) if min =>
-                        Range((value ^ lastBit) & mask, mask) ::
-                        GetAllowedRangesImpl(value, l, min, max, depth + 1)
-                    case Tree(Nil, r) if max =>
-                        Range((value ^ lastBit) & mask, mask) ::
-                        GetAllowedRangesImpl(value, r, min, max, depth + 1)
-                    case Tree(l, r) if isOne =>
-                        GetAllowedRangesImpl(value, r, min, max, depth + 1)
-                    case Tree(l, r) if !isOne =>
-                        GetAllowedRangesImpl(value, l, min, max, depth + 1)
-                }
-            }
-        }
-
         val (root, depth) = SkipCommonPrefix(minValue, maxValue, trie, 1)
-        val fromMin = GetAllowedRangesImpl(minValue, root, true, false, depth)
-        val fromMax = GetAllowedRangesImpl(maxValue, root, false, true, depth)
+        val fromMin = GetRangesImpl(minValue, root, min = true, max = false,
+                                    allowed = true, depth)
+        val fromMax = GetRangesImpl(maxValue, root, min = false, max = true,
+                                    allowed = true, depth)
         return fromMin ::: fromMax
     }
 
@@ -131,8 +87,8 @@ object Tree {
         if ((value & (1 << pos)) != 0) 1 else 0
     }
 
-    private def GetRangesImpl(value: Int, trie: Node, min: Boolean,
-                              max: Boolean, allowed: Boolean,
+    private def GetRangesImpl(value: Int, trie: Node,
+                              min: Boolean, max: Boolean, allowed: Boolean,
                               depth: Int): List[Range] = {
         if (depth > Tree.maxDepth) {
             if (allowed) {
